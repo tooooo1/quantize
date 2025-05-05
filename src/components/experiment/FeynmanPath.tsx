@@ -107,7 +107,7 @@ export const FeynmanPath = () => {
       ctx.lineTo(optimalPath.points[1].x, optimalPath.points[1].y);
 
       ctx.strokeStyle = '#0ea5e9';
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 6;
       ctx.stroke();
 
       ctx.shadowBlur = 0;
@@ -213,12 +213,14 @@ export const FeynmanPath = () => {
       stopAnimation();
       resizeObserver.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!isRunning) {
       generatePaths();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviation, pathCount, showOptimal]);
 
   const controls = (
@@ -285,6 +287,7 @@ export const FeynmanPath = () => {
         <div className="flex items-center gap-3">
           <Checkbox
             id="showOptimal"
+            disabled={isRunning}
             checked={showOptimal}
             onCheckedChange={checked => setShowOptimal(!!checked)}
             className="checkbox size-5"
@@ -294,26 +297,23 @@ export const FeynmanPath = () => {
           </Label>
         </div>
 
-        <div className="flex gap-4">
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button
-              onClick={toggleAnimation}
-              className="w-full bg-[#0ea5e9] px-6 py-2 text-sm font-medium text-white hover:bg-[#0ea5e9]/90 sm:w-auto"
-            >
-              {isRunning ? '정지' : '시작'}
-            </Button>
-          </motion.div>
+        <div className="flex gap-8">
+          <Button className="flex-1" onClick={toggleAnimation}>
+            {isRunning ? '정지' : '시작'}
+          </Button>
 
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button
-              onClick={() => !isRunning && generatePaths()}
-              variant="outline"
-              className="w-full border-[#1a1a1a] bg-[#111111] px-6 py-2 text-sm font-medium text-white hover:bg-[#1a1a1a] sm:w-auto"
-              disabled={isRunning}
-            >
-              재생성
-            </Button>
-          </motion.div>
+          <Button
+            className="flex-1"
+            onClick={() => {
+              if (!isRunning) {
+                generatePaths();
+              }
+            }}
+            variant="outline"
+            disabled={isRunning}
+          >
+            재생성
+          </Button>
         </div>
       </motion.div>
     </div>

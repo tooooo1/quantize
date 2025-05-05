@@ -10,7 +10,7 @@ type ExperimentLayoutProps = {
 
 const ExperimentLayout = ({ title, description, children, controls }: ExperimentLayoutProps) => {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-screen w-screen flex-col">
       <motion.header
         className="border-b border-[#1a1a1a] p-4 md:p-5"
         initial={{ opacity: 0, y: -20 }}
@@ -36,7 +36,7 @@ const ExperimentLayout = ({ title, description, children, controls }: Experiment
       </motion.header>
 
       <motion.div
-        className="relative flex-1 overflow-hidden bg-[#050505]"
+        className="relative flex-1 overflow-hidden"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.8 }}
