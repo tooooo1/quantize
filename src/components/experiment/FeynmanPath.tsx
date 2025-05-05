@@ -322,7 +322,7 @@ export const FeynmanPath = () => {
   return (
     <ExperimentLayout
       title="파인만 경로 적분"
-      description="양자역학에서 모든 입자는 동시에 가능한 모든 경로를 탐색합니다."
+      description={`양자역학에서 모든 입자는\n동시에 가능한 모든 경로를 탐색합니다.`}
       controls={controls}
     >
       <motion.div

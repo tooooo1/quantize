@@ -26,7 +26,7 @@ const ExperimentLayout = ({ title, description, children, controls }: Experiment
           {title}
         </motion.h1>
         <motion.p
-          className="mt-1 text-sm text-[#cccccc] md:text-base"
+          className="mt-1 text-sm whitespace-pre-wrap text-[#cccccc] transition-all duration-500 md:text-base md:whitespace-normal"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.5 }}
