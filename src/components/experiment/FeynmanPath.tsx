@@ -1,185 +1,87 @@
 import { useState, useRef, useEffect } from 'react';
-import { Slider } from '@/components/ui/slider';
-import { Button } from '@/components/ui/button';
-import ExperimentLayout from '@/components/layout/ExperimentLayout';
-import { Path, Point } from '@/types';
+import { Slider } from '../ui/slider';
+import { Button } from '../ui/button';
+import { Checkbox } from '../ui/checkbox';
+import { Label } from '../ui/label';
+import ExperimentLayout from '../layout/ExperimentLayout';
+import { Path, Point } from '../../types';
+import { motion } from 'framer-motion';
+import { generateRandomPath, getOptimalPath, calculatePoints } from '../../lib/feynman';
 
-const DEFAULT_PATH_COUNT = 50;
-const MAX_PATH_COUNT = 500;
+const DEFAULT_PATH_COUNT = 10;
+const MAX_PATH_COUNT = 50;
+const MIN_PATH_COUNT = 5;
+const PATH_COUNT_STEP = 5;
 
-/**
- * 위상에 따른 색상 계산
- */
-const getPhaseColor = (phase: number) => {
-  const hue = (phase * 360) % 360;
-  return `hsl(${hue}, 80%, 60%)`;
-};
+const MIN_DEVIATION = 0;
+const MAX_DEVIATION = 200;
+const DEVIATION_STEP = 5;
+const DEFAULT_DEVIATION = 50;
 
-/**
- * HSL 색상을 RGB로 변환
- */
-const hslToRgb = (hex: string) => {
-  // hsl 문자열에서 숫자만 추출
-  const hslRegex = /hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/;
-  const match = hex.match(hslRegex);
+const ANIMATION_FPS = 6;
+const PATH_SEGMENTS = 5;
+const PATH_INTERPOLATION_FACTOR = 0.3;
 
-  if (!match) return { r: 255, g: 255, b: 255 }; // 기본값
-
-  const h = parseInt(match[1]) / 360;
-  const s = parseInt(match[2]) / 100;
-  const l = parseInt(match[3]) / 100;
-
-  // HSL → RGB 변환
-  let r, g, b;
-
-  if (s === 0) {
-    r = g = b = l;
-  } else {
-    const hue2rgb = (p: number, q: number, t: number) => {
-      if (t < 0) t += 1;
-      if (t > 1) t -= 1;
-      if (t < 1 / 6) return p + (q - p) * 6 * t;
-      if (t < 1 / 2) return q;
-      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-      return p;
-    };
-
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-
-    r = hue2rgb(p, q, h + 1 / 3);
-    g = hue2rgb(p, q, h);
-    b = hue2rgb(p, q, h - 1 / 3);
-  }
-
-  return {
-    r: Math.round(r * 255),
-    g: Math.round(g * 255),
-    b: Math.round(b * 255),
-  };
-};
-
-/**
- * 작용량 계산 (간단한 근사)
- */
-const calculateAction = (points: Point[]) => {
-  return points.reduce((action, point, i) => {
-    if (i === 0) return 0;
-
-    const dx = point.x - points[i - 1].x;
-    const dy = point.y - points[i - 1].y;
-
-    // 거리 제곱 (운동에너지 근사)
-    return action + dx * dx + dy * dy;
-  }, 0);
-};
-
-/**
- * 랜덤 경로 생성
- */
-const generateRandomPath = (start: Point, end: Point, deviation: number, id: string): Path => {
-  const points = [start];
-  const midPoints = 5;
-
-  // 중간 포인트 생성
-  for (let i = 1; i <= midPoints; i++) {
-    const ratio = i / (midPoints + 1);
-    const baseX = start.x + (end.x - start.x) * ratio;
-    const baseY = start.y + (end.y - start.y) * ratio;
-
-    points.push({
-      x: baseX + (Math.random() * 2 - 1) * deviation,
-      y: baseY + (Math.random() * 2 - 1) * deviation,
-    });
-  }
-
-  points.push(end);
-
-  const action = calculateAction(points);
-  const phase = action % (2 * Math.PI);
-
-  return { id, points, action, phase };
-};
-
-/**
- * 최적 경로 계산 (직선 경로)
- */
-const getOptimalPath = (start: Point, end: Point): Path => {
-  const points = [start, end];
-  const action = calculateAction(points);
-
-  return {
-    id: 'optimal',
-    points,
-    action,
-    phase: action % (2 * Math.PI),
-  };
-};
-
-const FeynmanPath = () => {
+export const FeynmanPath = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef(0);
+  const pointsRef = useRef<{ startPoint: Point; endPoint: Point }>({
+    startPoint: { x: 100, y: 300 },
+    endPoint: { x: 700, y: 300 },
+  });
 
-  // 상태 관리
-  const [paths, setPaths] = useState<Path[]>([]);
   const [pathCount, setPathCount] = useState(DEFAULT_PATH_COUNT);
-  const [deviation, setDeviation] = useState(50);
+  const [deviation, setDeviation] = useState(DEFAULT_DEVIATION);
   const [isRunning, setIsRunning] = useState(false);
   const [showOptimal, setShowOptimal] = useState(true);
 
-  // 시작점과 끝점 (고정)
-  const startPoint = { x: 100, y: 300 };
-  const endPoint = { x: 700, y: 300 };
+  const setupCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  // 경로 생성
-  const generatePaths = () => {
-    const newPaths = Array.from({ length: pathCount }, (_, i) =>
-      generateRandomPath(startPoint, endPoint, deviation, `path-${i}`)
-    );
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
 
-    setPaths(newPaths);
+    canvas.width = rect.width * devicePixelRatio;
+    canvas.height = rect.height * devicePixelRatio;
 
-    // 경로 생성 후 바로 그리기
-    requestAnimationFrame(() => draw(newPaths));
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+    }
+
+    pointsRef.current = calculatePoints(rect.width, rect.height);
+    return canvas;
   };
 
-  // 캔버스 그리기
-  const draw = (currentPaths = paths) => {
+  const generatePaths = (): Path[] => {
+    const canvas = setupCanvas();
+    if (!canvas) return [];
+
+    const { startPoint, endPoint } = pointsRef.current;
+    const paths = Array.from({ length: pathCount }, () =>
+      generateRandomPath(startPoint, endPoint, PATH_SEGMENTS, deviation)
+    );
+
+    draw(paths);
+    return paths;
+  };
+
+  const draw = (currentPaths: Path[]) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // 캔버스 크기 설정
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
+    const rect = canvas.getBoundingClientRect();
+    const { startPoint, endPoint } = pointsRef.current;
 
-    // 배경 그리기
-    ctx.fillStyle = '#030712';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(0, 0, rect.width, rect.height);
 
-    // 그리드 패턴
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.05)';
-    ctx.lineWidth = 1;
-
-    // 수직 그리드
-    for (let x = 0; x <= canvas.width; x += 40) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, canvas.height);
-      ctx.stroke();
-    }
-
-    // 수평 그리드
-    for (let y = 0; y <= canvas.height; y += 40) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
-      ctx.stroke();
-    }
-
-    // 경로 그리기
     currentPaths.forEach(path => {
       ctx.beginPath();
       ctx.moveTo(path.points[0].x, path.points[0].y);
@@ -188,18 +90,15 @@ const FeynmanPath = () => {
         ctx.lineTo(point.x, point.y);
       });
 
-      const color = getPhaseColor(path.phase);
-      const rgb = hslToRgb(color);
-      ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)`;
+      const hue = Math.floor(((path.phase * 180) / Math.PI) % 360);
+      ctx.strokeStyle = `hsla(${hue}, 80%, 60%, 0.3)`;
       ctx.lineWidth = 1.5;
       ctx.stroke();
     });
 
-    // 최적 경로 그리기
     if (showOptimal) {
       const optimalPath = getOptimalPath(startPoint, endPoint);
 
-      // 글로우 효과
       ctx.shadowColor = '#0ea5e9';
       ctx.shadowBlur = 15;
 
@@ -208,73 +107,80 @@ const FeynmanPath = () => {
       ctx.lineTo(optimalPath.points[1].x, optimalPath.points[1].y);
 
       ctx.strokeStyle = '#0ea5e9';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 4;
       ctx.stroke();
 
-      // 글로우 효과 제거
       ctx.shadowBlur = 0;
     }
 
-    // 시작점과 끝점 그리기
-    // 시작점 (청록색 그라데이션)
-    const startGradient = ctx.createRadialGradient(
-      startPoint.x,
-      startPoint.y,
-      0,
-      startPoint.x,
-      startPoint.y,
-      20
-    );
-    startGradient.addColorStop(0, '#0ea5e9');
-    startGradient.addColorStop(1, 'rgba(14, 165, 233, 0)');
-
-    ctx.fillStyle = startGradient;
+    ctx.fillStyle = '#38bdf8';
     ctx.beginPath();
-    ctx.arc(startPoint.x, startPoint.y, 20, 0, Math.PI * 2);
+    ctx.arc(startPoint.x, startPoint.y, 10, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
-    ctx.fillStyle = '#0ea5e9';
+    ctx.fillStyle = '#5eead4';
     ctx.beginPath();
-    ctx.arc(startPoint.x, startPoint.y, 8, 0, Math.PI * 2);
+    ctx.arc(endPoint.x, endPoint.y, 10, 0, Math.PI * 2);
     ctx.fill();
-
-    // 끝점 (에메랄드 그라데이션)
-    const endGradient = ctx.createRadialGradient(
-      endPoint.x,
-      endPoint.y,
-      0,
-      endPoint.x,
-      endPoint.y,
-      20
-    );
-    endGradient.addColorStop(0, '#14b8a6');
-    endGradient.addColorStop(1, 'rgba(20, 184, 166, 0)');
-
-    ctx.fillStyle = endGradient;
-    ctx.beginPath();
-    ctx.arc(endPoint.x, endPoint.y, 20, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#14b8a6';
-    ctx.beginPath();
-    ctx.arc(endPoint.x, endPoint.y, 8, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
   };
 
-  // 애니메이션 관련 함수
-  const toggleAnimation = () => {
-    if (isRunning) {
-      stopAnimation();
-    } else {
-      startAnimation();
-    }
-  };
+  const toggleAnimation = () => (isRunning ? stopAnimation() : startAnimation());
 
   const startAnimation = () => {
     setIsRunning(true);
 
-    const animate = () => {
-      generatePaths();
+    let lastTime = 0;
+    const interval = 1000 / ANIMATION_FPS;
+
+    let currentPaths = generatePaths();
+    let prevPaths = [...currentPaths];
+
+    const animate = (timestamp: number) => {
+      if (timestamp - lastTime < interval) {
+        animRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      lastTime = timestamp;
+
+      const { startPoint, endPoint } = pointsRef.current;
+
+      const newPaths = Array.from({ length: pathCount }, () =>
+        generateRandomPath(startPoint, endPoint, PATH_SEGMENTS, deviation)
+      );
+
+      const animatedPaths = newPaths.map((path, i) => {
+        if (i < prevPaths.length) {
+          const animatedPoints = path.points.map((point, pointIndex) => {
+            if (pointIndex < prevPaths[i].points.length) {
+              const prevPoint = prevPaths[i].points[pointIndex];
+              return {
+                x:
+                  prevPoint.x * PATH_INTERPOLATION_FACTOR +
+                  point.x * (1 - PATH_INTERPOLATION_FACTOR),
+                y:
+                  prevPoint.y * PATH_INTERPOLATION_FACTOR +
+                  point.y * (1 - PATH_INTERPOLATION_FACTOR),
+              };
+            }
+            return point;
+          });
+
+          return { ...path, points: animatedPoints };
+        }
+        return path;
+      });
+
+      prevPaths = [...newPaths];
+      currentPaths = animatedPaths;
+
+      draw(animatedPaths);
       animRef.current = requestAnimationFrame(animate);
     };
 
@@ -286,87 +192,130 @@ const FeynmanPath = () => {
     cancelAnimationFrame(animRef.current);
   };
 
-  // 컴포넌트 마운트/언마운트 처리
   useEffect(() => {
-    generatePaths();
+    startAnimation();
 
-    // 윈도우 리사이즈 시 다시 그리기
-    const handleResize = () => draw();
-    window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(() => {
+      setupCanvas();
+      if (isRunning) {
+        stopAnimation();
+        startAnimation();
+      } else {
+        generatePaths();
+      }
+    });
+
+    if (canvasRef.current) {
+      resizeObserver.observe(canvasRef.current);
+    }
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animRef.current);
+      stopAnimation();
+      resizeObserver.disconnect();
     };
   }, []);
 
-  // 설정이 변경될 때 경로 다시 생성
   useEffect(() => {
     if (!isRunning) {
       generatePaths();
     }
   }, [deviation, pathCount, showOptimal]);
 
-  // UI 컨트롤
   const controls = (
-    <div className="flex flex-col gap-4">
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <label className="text-sm font-medium">경로 수</label>
-            <span className="text-muted-foreground text-sm">{pathCount}</span>
+    <div className="flex flex-col space-y-8">
+      <motion.div
+        className="grid grid-cols-1 gap-8 sm:grid-cols-2"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="space-y-4 rounded-md bg-[#0f0f0f] p-4">
+          <div className="flex items-center justify-between border-b border-[#1a1a1a] pb-3">
+            <Label className="text-sm font-medium text-white sm:text-base">경로 수</Label>
+            <motion.span
+              key={pathCount}
+              className="rounded-md bg-[#1a1a1a] px-3 py-1 text-sm text-white"
+              initial={{ scale: 1.2 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+            >
+              {pathCount}
+            </motion.span>
           </div>
           <Slider
             value={[pathCount]}
-            min={10}
+            min={MIN_PATH_COUNT}
             max={MAX_PATH_COUNT}
-            step={1}
+            step={PATH_COUNT_STEP}
             onValueChange={v => setPathCount(v[0])}
-            className="py-1"
+            disabled={isRunning}
           />
         </div>
 
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <label className="text-sm font-medium">무작위성 정도</label>
-            <span className="text-muted-foreground text-sm">{deviation}</span>
+        <div className="space-y-4 rounded-md bg-[#0f0f0f] p-4">
+          <div className="flex items-center justify-between border-b border-[#1a1a1a] pb-3">
+            <Label className="text-sm font-medium text-white sm:text-base">무작위성</Label>
+            <motion.span
+              key={deviation}
+              className="rounded-md bg-[#1a1a1a] px-3 py-1 text-sm text-white"
+              initial={{ scale: 1.2 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+            >
+              {deviation}
+            </motion.span>
           </div>
           <Slider
             value={[deviation]}
-            min={0}
-            max={200}
-            step={1}
+            min={MIN_DEVIATION}
+            max={MAX_DEVIATION}
+            step={DEVIATION_STEP}
             onValueChange={v => setDeviation(v[0])}
-            className="py-1"
+            disabled={isRunning}
           />
         </div>
+      </motion.div>
 
-        <div className="flex items-center gap-2 rounded-md bg-gray-900/50 p-2">
-          <input
-            type="checkbox"
+      <motion.div
+        className="flex flex-col items-stretch gap-4 rounded-md bg-[#0f0f0f] p-4 sm:flex-row sm:items-center sm:justify-between"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.5 }}
+      >
+        <div className="flex items-center gap-3">
+          <Checkbox
             id="showOptimal"
             checked={showOptimal}
-            onChange={e => setShowOptimal(e.target.checked)}
-            className="focus:ring-opacity-25 h-4 w-4 rounded border-gray-700 text-blue-500 focus:ring-blue-400"
+            onCheckedChange={checked => setShowOptimal(!!checked)}
+            className="checkbox size-5"
           />
-          <label htmlFor="showOptimal" className="text-sm">
-            최적 경로 표시
-          </label>
+          <Label htmlFor="showOptimal" className="text-sm text-white">
+            최적경로 표시
+          </Label>
         </div>
 
-        <div className="space-y-2">
-          <Button
-            onClick={toggleAnimation}
-            className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-md hover:from-blue-600 hover:to-cyan-600"
-          >
-            {isRunning ? '애니메이션 정지' : '애니메이션 시작'}
-          </Button>
+        <div className="flex gap-4">
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button
+              onClick={toggleAnimation}
+              className="w-full bg-[#0ea5e9] px-6 py-2 text-sm font-medium text-white hover:bg-[#0ea5e9]/90 sm:w-auto"
+            >
+              {isRunning ? '정지' : '시작'}
+            </Button>
+          </motion.div>
 
-          <Button onClick={generatePaths} className="w-full" variant="outline">
-            경로 재생성
-          </Button>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button
+              onClick={() => !isRunning && generatePaths()}
+              variant="outline"
+              className="w-full border-[#1a1a1a] bg-[#111111] px-6 py-2 text-sm font-medium text-white hover:bg-[#1a1a1a] sm:w-auto"
+              disabled={isRunning}
+            >
+              재생성
+            </Button>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 
@@ -376,9 +325,14 @@ const FeynmanPath = () => {
       description="양자역학에서 모든 입자는 동시에 가능한 모든 경로를 탐색합니다."
       controls={controls}
     >
-      <canvas ref={canvasRef} className="h-full w-full bg-gray-950" />
+      <motion.div
+        className="h-full w-full"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+      >
+        <canvas ref={canvasRef} className="h-full w-full" />
+      </motion.div>
     </ExperimentLayout>
   );
 };
-
-export default FeynmanPath;

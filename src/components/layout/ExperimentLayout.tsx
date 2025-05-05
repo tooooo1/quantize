@@ -1,30 +1,57 @@
 import { ReactNode } from 'react';
+import { motion } from 'framer-motion';
 
 type ExperimentLayoutProps = {
   title: string;
-  description?: string;
+  description: string;
   children: ReactNode;
-  controls?: ReactNode;
+  controls: ReactNode;
 };
 
 const ExperimentLayout = ({ title, description, children, controls }: ExperimentLayoutProps) => {
   return (
-    <div className="flex h-screen flex-col">
-      <header className="border-b border-gray-800 bg-gray-900 p-4">
-        <h1 className="text-2xl font-bold text-[#0ea5e9]">{title}</h1>
-        {description && <p className="mt-1 text-gray-400">{description}</p>}
-      </header>
+    <div className="flex h-full flex-col">
+      <motion.header
+        className="border-b border-[#1a1a1a] p-4 md:p-5"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+      >
+        <motion.h1
+          className="text-lg font-bold text-[#0ea5e9] md:text-xl"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
+          {title}
+        </motion.h1>
+        <motion.p
+          className="mt-1 text-sm text-[#cccccc] md:text-base"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+        >
+          {description}
+        </motion.p>
+      </motion.header>
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="relative flex-1 overflow-hidden">{children}</div>
+      <motion.div
+        className="relative flex-1 overflow-hidden bg-[#050505]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.8 }}
+      >
+        {children}
+      </motion.div>
 
-        {controls && (
-          <div className="w-80 overflow-y-auto border-l border-gray-800 bg-gray-950 p-4">
-            <h2 className="mb-4 text-lg font-medium">컨트롤</h2>
-            {controls}
-          </div>
-        )}
-      </div>
+      <motion.div
+        className="bg-[#0a0a0a] p-6 md:p-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.5, ease: 'easeOut' }}
+      >
+        {controls}
+      </motion.div>
     </div>
   );
 };

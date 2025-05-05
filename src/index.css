@@ -1,65 +1,90 @@
-@import 'tailwindcss';
 @import 'tailwindcss/preflight';
-
 @tailwind utilities;
 
-body {
-  background-color: black;
-  color: white;
-}
-
-@theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-}
-
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.488 0.243 264.376);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  /* 기본 컬러 팔레트 */
+  --color-background: #000000;
+  --color-surface: #111111;
+  --color-surface-alt: #1a1a1a;
+  --color-text: #ffffff;
+  --color-text-secondary: #cccccc;
+
+  /* 브랜드 컬러 */
+  --color-primary: #0ea5e9;
+  --color-primary-light: #38bdf8;
+  --color-secondary: #14b8a6;
+
+  /* 액션 색상 */
+  --color-accent: #8b5cf6;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+
+  /* 경로 색상 */
+  --color-optimal-path: #0ea5e9;
+  --color-start-point: #38bdf8;
+  --color-end-point: #5eead4;
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
+/* 글로벌 스타일 */
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  overflow: hidden;
+}
+
+html {
+  height: 100%;
+  width: 100%;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 640px) {
+  canvas {
+    height: 100% !important;
+    width: 100% !important;
+    display: block;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
+}
+
+/* 캔버스 스타일 */
+canvas {
+  background-color: var(--color-background);
+  touch-action: none; /* 터치 스크롤 방지 */
+}
+
+/* 슬라이더 스타일 오버라이드 */
+[data-slot='slider-track'] {
+  height: 8px !important;
+  background-color: var(--color-surface-alt) !important;
+  border-radius: 4px !important;
+}
+
+[data-slot='slider-range'] {
+  background-color: var(--color-primary) !important;
+}
+
+[data-slot='slider-thumb'] {
+  width: 16px !important;
+  height: 16px !important;
+  background-color: var(--color-text) !important;
+  border: 2px solid var(--color-primary) !important;
+}
+
+[data-slot='slider-thumb']:hover {
+  background-color: #f0f0f0 !important;
+}
+
+/* 체크박스 스타일 오버라이드 */
+.checkbox {
+  border-color: var(--color-surface-alt) !important;
+  background-color: var(--color-surface) !important;
+}
+
+.checkbox[data-state='checked'] {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
 }
